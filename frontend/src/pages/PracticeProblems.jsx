@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
-import { Search, Filter } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { Search } from 'lucide-react'
+import apiClient from '../services/api'
 
 export default function PracticeProblems() {
   const [problems, setProblems] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('ALL')
   const [difficultyFilter, setDifficultyFilter] = useState('ALL')
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchProblems()
@@ -15,10 +18,18 @@ export default function PracticeProblems() {
 
   const fetchProblems = async () => {
     try {
-      const response = await axios.get('/api/problems')
-      setProblems(response.data)
+      setError('')
+      const response = await apiClient.get('/problems')
+      const payload = response.data
+      const items = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.content)
+          ? payload.content
+          : []
+      setProblems(items)
     } catch (error) {
       console.error('Error fetching problems:', error)
+      setError('Unable to load problems. Please ensure backend is running on port 8080 and try again.')
     } finally {
       setLoading(false)
     }
@@ -36,6 +47,16 @@ export default function PracticeProblems() {
       default: return ''
     }
   }
+
+  const filteredProblems = problems.filter((problem) => {
+    const query = searchTerm.trim().toLowerCase()
+    const matchesSearch = !query ||
+      problem.title?.toLowerCase().includes(query) ||
+      problem.description?.toLowerCase().includes(query)
+    const matchesCategory = categoryFilter === 'ALL' || problem.category === categoryFilter
+    const matchesDifficulty = difficultyFilter === 'ALL' || problem.difficulty === difficultyFilter
+    return matchesSearch && matchesCategory && matchesDifficulty
+  })
 
   return (
     <div className="p-8">
@@ -82,6 +103,12 @@ export default function PracticeProblems() {
 
       {/* Problems Table */}
       <div className="overflow-x-auto bg-dark-bg-secondary rounded-lg border border-dark-bg-tertiary">
+        {loading && (
+          <div className="px-6 py-8 text-dark-text-secondary">Loading problems...</div>
+        )}
+        {!loading && error && (
+          <div className="px-6 py-8 text-red-400">{error}</div>
+        )}
         <table className="w-full">
           <thead className="bg-dark-bg-tertiary border-b border-dark-bg-tertiary">
             <tr>
@@ -93,7 +120,7 @@ export default function PracticeProblems() {
             </tr>
           </thead>
           <tbody>
-            {problems.map((problem) => (
+            {filteredProblems.map((problem) => (
               <tr key={problem.id} className="border-b border-dark-bg-tertiary hover:bg-dark-bg-tertiary transition-colors">
                 <td className="px-6 py-4 text-dark-text font-medium">{problem.title}</td>
                 <td className="px-6 py-4 text-dark-text-secondary">{problem.category}</td>
@@ -106,12 +133,22 @@ export default function PracticeProblems() {
                   {problem.acceptanceRate?.toFixed(1) || 0}%
                 </td>
                 <td className="px-6 py-4">
-                  <button className="text-primary hover:text-primary-light transition-colors">
+                  <button
+                    onClick={() => navigate(`/problem/${problem.id}`)}
+                    className="text-primary hover:text-primary-light transition-colors"
+                  >
                     Solve →
                   </button>
                 </td>
               </tr>
             ))}
+            {!loading && !error && filteredProblems.length === 0 && (
+              <tr>
+                <td colSpan="5" className="px-6 py-8 text-center text-dark-text-secondary">
+                  No problems match your current filters.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

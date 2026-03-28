@@ -41,7 +41,19 @@ public class ProblemService {
     }
 
     public List<ProblemDTO> getProblemsByFilter(Problem.Category category, Problem.Difficulty difficulty) {
-        return problemRepository.findByCategoryAndDifficulty(category, difficulty).stream()
+        List<Problem> problems;
+
+        if (category == null && difficulty == null) {
+            problems = problemRepository.findAll();
+        } else if (category != null && difficulty != null) {
+            problems = problemRepository.findByCategoryAndDifficulty(category, difficulty);
+        } else if (category != null) {
+            problems = problemRepository.findByCategory(category);
+        } else {
+            problems = problemRepository.findByDifficulty(difficulty);
+        }
+
+        return problems.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -73,8 +85,9 @@ public class ProblemService {
     }
 
     private ProblemDTO convertToDTO(Problem problem) {
-        double acceptanceRate = problem.getSubmissionsCount() > 0 ?
-                (double) problem.getAcceptedCount() / problem.getSubmissionsCount() * 100 : 0;
+        double acceptanceRate = problem.getSubmissionsCount() > 0
+                ? (double) problem.getAcceptedCount() / problem.getSubmissionsCount() * 100
+                : 0;
 
         return ProblemDTO.builder()
                 .id(problem.getId())

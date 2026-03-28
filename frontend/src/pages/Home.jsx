@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
 import { Play, Pause, RotateCcw, Zap } from 'lucide-react'
 
 export default function Home() {
+  const navigate = useNavigate()
   const [algorithms, setAlgorithms] = useState([
     { id: 1, name: 'Bubble Sort', category: 'Sorting', difficulty: 'Easy' },
     { id: 2, name: 'Merge Sort', category: 'Sorting', difficulty: 'Medium' },
@@ -23,10 +25,16 @@ export default function Home() {
           Learn DSA through interactive visualizations, practice problems, and AI-powered explanations
         </p>
         <div className="flex gap-4">
-          <button className="px-8 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold transition-colors">
+          <button
+            onClick={() => navigate('/learn')}
+            className="px-8 py-3 bg-primary hover:bg-primary-dark text-white rounded-lg font-semibold transition-colors"
+          >
             Start Learning
           </button>
-          <button className="px-8 py-3 border border-primary text-primary hover:bg-primary/10 rounded-lg font-semibold transition-colors">
+          <button
+            onClick={() => navigate('/practice')}
+            className="px-8 py-3 border border-primary text-primary hover:bg-primary/10 rounded-lg font-semibold transition-colors"
+          >
             View Problems
           </button>
         </div>
@@ -57,6 +65,7 @@ export default function Home() {
           {algorithms.map((algo) => (
             <div
               key={algo.id}
+              onClick={() => navigate(`/visualizer/${algo.name.toLowerCase().replace(/\s+/g, '-')}`)}
               className="p-6 bg-dark-bg-secondary rounded-lg border border-dark-bg-tertiary hover:border-primary cursor-pointer transition-colors group"
             >
               <h3 className="text-lg font-semibold text-dark-text group-hover:text-primary transition-colors">

@@ -60,7 +60,8 @@ public class CodeExecutionService {
             // Write Java file
             String className = "Solution";
             String javaFile = tempDir + File.separator + className + ".java";
-            Files.write(Paths.get(javaFile), request.getCode().getBytes(StandardCharsets.UTF_8));
+            String normalizedCode = normalizeJavaSource(request.getCode(), className);
+            Files.write(Paths.get(javaFile), normalizedCode.getBytes(StandardCharsets.UTF_8));
 
             // Compile
             ProcessBuilder compileBuilder = new ProcessBuilder("javac", javaFile);
@@ -78,10 +79,18 @@ public class CodeExecutionService {
                 }
                 submission.setStatus(Status.COMPILATION_ERROR);
                 submission.setErrorMessage(error.toString());
-                return convertToDTO(submissionRepository.save(submission));
+                return persistSubmissionWithStats(submission);
             }
 
-            // Execute
+            if (!containsMainMethod(normalizedCode)) {
+                submission.setStatus(Status.ACCEPTED);
+                submission.setOutput("Compiled successfully");
+                submission.setExecutionTimeMs(0L);
+                cleanupDirectory(tempDir);
+                return persistSubmissionWithStats(submission);
+            }
+
+            // Execute when main method is present
             long startTime = System.currentTimeMillis();
             ProcessBuilder runBuilder = new ProcessBuilder("java", "-cp", tempDir, className);
             runBuilder.directory(new File(tempDir));
@@ -129,7 +138,98 @@ public class CodeExecutionService {
             submission.setErrorMessage("Execution was interrupted");
         }
 
-        return convertToDTO(submissionRepository.save(submission));
+        return persistSubmissionWithStats(submission);
+    }
+
+    private SubmissionDTO persistSubmissionWithStats(Submission submission) {
+        Submission savedSubmission = submissionRepository.save(submission);
+        submissionRepository.flush();
+        recalculateUserStats(savedSubmission.getUser());
+        recalculateProblemStats(savedSubmission.getProblem());
+        return convertToDTO(savedSubmission);
+    }
+
+    private void recalculateUserStats(User user) {
+        long totalSubmissions = submissionRepository.countByUserId(user.getId());
+        long acceptedCount = submissionRepository.countByUserIdAndStatus(user.getId(), Status.ACCEPTED);
+        long solvedCount = submissionRepository.countDistinctSolvedProblems(user.getId(), Status.ACCEPTED);
+
+        double accuracy = totalSubmissions == 0
+            ? 0.0
+            : ((double) acceptedCount / totalSubmissions) * 100.0;
+
+        user.setProblemsSolved((int) solvedCount);
+        user.setAverageAccuracy(accuracy);
+        userRepository.save(user);
+    }
+
+    private void recalculateProblemStats(Problem problem) {
+        long totalSubmissions = submissionRepository.countByProblemId(problem.getId());
+        long acceptedCount = submissionRepository.countByProblemIdAndStatus(problem.getId(), Status.ACCEPTED);
+
+        problem.setSubmissionsCount((int) totalSubmissions);
+        problem.setAcceptedCount((int) acceptedCount);
+        problemRepository.save(problem);
+    }
+
+    private String normalizeJavaSource(String code, String className) {
+        String source = code == null ? "" : code.trim();
+        if (source.isEmpty()) {
+            return "public class " + className + " { }";
+        }
+
+        if (source.matches("(?s).*\\bclass\\s+" + className + "\\b.*")) {
+            return source;
+        }
+
+        if (source.matches("(?s).*\\bclass\\s+\\w+\\b.*")) {
+            return source;
+        }
+
+        String packageLine = "";
+        StringBuilder importLines = new StringBuilder();
+        StringBuilder body = new StringBuilder();
+        boolean encounteredBody = false;
+
+        String[] lines = source.split("\\R");
+        for (String line : lines) {
+            String trimmed = line.trim();
+
+            if (!encounteredBody && packageLine.isEmpty() && trimmed.startsWith("package ") && trimmed.endsWith(";")) {
+                packageLine = trimmed;
+                continue;
+            }
+
+            if (!encounteredBody && trimmed.startsWith("import ") && trimmed.endsWith(";")) {
+                importLines.append(trimmed).append("\n");
+                continue;
+            }
+
+            encounteredBody = true;
+            body.append(line).append("\n");
+        }
+
+        StringBuilder wrapped = new StringBuilder();
+        if (!packageLine.isEmpty()) {
+            wrapped.append(packageLine).append("\n\n");
+        }
+        if (importLines.length() > 0) {
+            wrapped.append(importLines).append("\n");
+        }
+
+        wrapped.append("public class ").append(className).append(" {\n");
+        if (body.length() > 0) {
+            wrapped.append(body);
+            if (body.charAt(body.length() - 1) != '\n') {
+                wrapped.append('\n');
+            }
+        }
+        wrapped.append("}");
+        return wrapped.toString();
+    }
+
+    private boolean containsMainMethod(String source) {
+        return source != null && source.matches("(?s).*public\\s+static\\s+void\\s+main\\s*\\(\\s*String\\s*\\[\\]\\s*\\w+\\s*\\).*" );
     }
 
     private SubmissionDTO convertToDTO(Submission submission) {

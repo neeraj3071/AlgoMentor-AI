@@ -4,7 +4,10 @@ import Sidebar from './Sidebar'
 import { useState } from 'react'
 
 export default function Layout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.innerWidth >= 1024
+  })
 
   return (
     <div className="flex h-screen bg-dark-bg">

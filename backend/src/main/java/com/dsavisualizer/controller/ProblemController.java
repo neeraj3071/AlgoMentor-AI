@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/problems")
-@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:3000" }, maxAge = 3600)
+@CrossOrigin(origins = { "http://localhost:5173", "http://localhost:5174", "http://localhost:3000" }, maxAge = 3600)
 public class ProblemController {
 
     @Autowired

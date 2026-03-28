@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
-import axios from 'axios'
 import { Play, RotateCcw, Zap } from 'lucide-react'
+import apiClient from '../services/api'
 
 export default function ProblemDetail() {
   const { id } = useParams()
@@ -18,7 +18,7 @@ export default function ProblemDetail() {
 
   const fetchProblem = async () => {
     try {
-      const response = await axios.get(`/api/problems/${id}`)
+      const response = await apiClient.get(`/problems/${id}`)
       setProblem(response.data)
       setCode(response.data.boilerplateCode || '')
     } catch (error) {
@@ -29,14 +29,14 @@ export default function ProblemDetail() {
   const handleRun = async () => {
     setLoading(true)
     try {
-      const response = await axios.post('/api/execute', {
-        problemId: id,
+      const response = await apiClient.post('/execute', {
+        problemId: Number(id),
         code: code,
         language: 'java'
       })
       setOutput(response.data.output || response.data.errorMessage)
     } catch (error) {
-      setOutput('Error executing code: ' + error.message)
+      setOutput(error.response?.data?.message || ('Error executing code: ' + error.message))
     } finally {
       setLoading(false)
     }
@@ -45,14 +45,14 @@ export default function ProblemDetail() {
   const handleSubmit = async () => {
     setSubmitting(true)
     try {
-      const response = await axios.post('/api/submit', {
-        problemId: id,
+      const response = await apiClient.post('/execute', {
+        problemId: Number(id),
         code: code,
         language: 'java'
       })
-      setOutput(response.data.status)
+      setOutput(`Submission result: ${response.data.status}`)
     } catch (error) {
-      setOutput('Submission error: ' + error.message)
+      setOutput(error.response?.data?.message || ('Submission error: ' + error.message))
     } finally {
       setSubmitting(false)
     }

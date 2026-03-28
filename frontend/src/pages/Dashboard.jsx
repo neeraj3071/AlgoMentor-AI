@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import apiClient from '../services/api'
 
 export default function Dashboard() {
   const [user, setUser] = useState(null)
@@ -16,9 +16,7 @@ export default function Dashboard() {
       setUser(userData)
 
       if (userData.id) {
-        const response = await axios.get(`/api/user/${userData.id}`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        })
+        const response = await apiClient.get(`/user/${userData.id}`)
         setStats(response.data)
       }
     } catch (error) {
@@ -38,11 +36,11 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         <div className="p-6 bg-dark-bg-secondary rounded-lg border border-dark-bg-tertiary">
           <p className="text-dark-text-secondary text-sm mb-2">Problems Solved</p>
-          <p className="text-4xl font-bold text-primary">{user?.problemsSolved || 0}</p>
+          <p className="text-4xl font-bold text-primary">{stats?.problemsSolved ?? user?.problemsSolved ?? 0}</p>
         </div>
         <div className="p-6 bg-dark-bg-secondary rounded-lg border border-dark-bg-tertiary">
           <p className="text-dark-text-secondary text-sm mb-2">Accuracy</p>
-          <p className="text-4xl font-bold text-primary">{user?.averageAccuracy?.toFixed(1) || 0}%</p>
+          <p className="text-4xl font-bold text-primary">{(stats?.averageAccuracy ?? user?.averageAccuracy ?? 0).toFixed(1)}%</p>
         </div>
         <div className="p-6 bg-dark-bg-secondary rounded-lg border border-dark-bg-tertiary">
           <p className="text-dark-text-secondary text-sm mb-2">Streak</p>
