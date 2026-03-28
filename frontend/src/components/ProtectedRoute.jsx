@@ -1,0 +1,21 @@
+import React, { useEffect, useState } from 'react'
+
+export default function ProtectedRoute({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(null)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    setIsAuthenticated(!!token)
+  }, [])
+
+  if (isAuthenticated === null) {
+    return <div className="flex items-center justify-center h-screen">Loading...</div>
+  }
+
+  if (!isAuthenticated) {
+    window.location.href = '/login'
+    return null
+  }
+
+  return children
+}
